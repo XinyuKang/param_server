@@ -27,18 +27,20 @@ class Worker(NN_Trainer):
         self.max_epochs = kwargs['max_epochs']
         self.momentum = kwargs['momentum']
         self.lr = kwargs['lr']
-        self.max_steps = kwargs['max_steps']
+        self.max_steps = kwargs['max_num_step']
         self.eval_freq = kwargs['eval_freq']
         self.train_dir = kwargs['train_dir']
         self.device = kwargs['device']
 
     def build_model(self, num_classes=10):
-        super.build_model(num_classes)
+        print("worker inside build_model")
+        super().build_model(num_classes)
         # assign a buffer for receiving models from parameter server
         self.model_recv_buf = ModelBuffer(self.network)
         self.network.to(self.device)
 
     def train(self, train_loader, test_loader):
+        print("worker inside train")
         # the first step we need to do here is to sync fetch the inital worl_step from the parameter server
         # we still need to make sure the value we fetched from parameter server is 1
         print("Worker {}: starting training".format(self.rank))
@@ -70,6 +72,7 @@ class Worker(NN_Trainer):
                     self.save_model(file_path=self.train_dir+"step_"+str(self.cur_step))
 
     def receive_gradients(self):
+        print("worker inside receive_gradients")
         for layer_idx, layer in enumerate(self.model_recv_buf.recv_buf):
             # receiver the tensor
             dist.broadcast(self.model_recv_buf.recv_buf[layer_idx], src=0)
@@ -78,6 +81,7 @@ class Worker(NN_Trainer):
         self.cur_step += 1
 
     def update_model(self, weights_to_update):
+        print("worker inside update_model")
         """write model fetched from parameter server to local model"""
         new_state_dict = {}
         model_index = 0
@@ -94,6 +98,7 @@ class Worker(NN_Trainer):
         self.network.load_state_dict(new_state_dict)
 
     def send_gradients(self):
+        print("worker inside send_gradients")
         for p_index, param in enumerate(self.network.parameters()):
             if self.device.type == "cuda":
                 grad = param.grad.to(torch.device("cpu")).detach()
@@ -102,6 +107,7 @@ class Worker(NN_Trainer):
             dist.gather(grad, [], dst=0)
 
     def save_model(self, file_path):
+        print("worker inside save_model")
         with open(file_path, "wb") as f:
             torch.save(self.network.state_dict(), f)
         return

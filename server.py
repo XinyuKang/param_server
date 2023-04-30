@@ -29,10 +29,12 @@ class Server(NN_Trainer):
         self.eval_batch_size = 1000
         self.cur_step = 1
         self.max_num_step = kwargs['max_num_step']
+        self.lr = kwargs['lr']
+        self.momentum = kwargs['momentum']
         
 
     def build_model(self, num_classes=10):
-        super.build_model(num_classes)
+        super().build_model(num_classes)
         # self.network = ResNet18(num_classes)
         # self.optimizer = SGD(self.network.parameters(), lr=self.lr, momentum=self.momentum)
         # collect gradients from workers
@@ -56,7 +58,7 @@ class Server(NN_Trainer):
         for layer_idx, layer in enumerate(self.network.parameters()):
             dummpy_grad = self.grad_accumulator.gradient_aggregator[layer_idx][0]
             dist.gather(dummpy_grad, self.grad_accumulator.gradient_aggregator[layer_idx], dst=0)
-            self.aggregate_gradient(layer_idx=layer_idx, gradient=self.grad_accumulator.gradient_aggregator[layer_idx])
+            self.aggregate_gradients(layer_idx=layer_idx, gradient=self.grad_accumulator.gradient_aggregator[layer_idx])
 
     def save_model(self, save_path):
         with open(save_path, "wb") as f:

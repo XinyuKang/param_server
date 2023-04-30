@@ -27,7 +27,7 @@ def add_args(parser):
                         help='directory to save the temp model during the training process for evaluation')
     parser.add_argument('--rank', type=int, default=0, metavar='RK',
                         help='the rank of this worker, default to server')
-    parser.add_argument('--world-size', type=int, default=2, metavar='WS',
+    parser.add_argument('--world-size', type=int, default=3, metavar='WS',
                         help='number of total workers')
     parser.add_argument('--server-addr', type=str, default='localhost', metavar='SA',
                         help='address of the server')
@@ -81,9 +81,10 @@ if __name__ == "__main__":
                 'eval_freq':args.eval_freq, 
                 'train_dir':args.train_dir, 
                 'max_num_step':args.max_num_step, 
-                'device':device}
+                'device':device,}
 
     kwargs_worker = {
+                'world_size':world_size,
                 'rank':rank,
                 'batch_size':args.batch_size, 
                 'lr':args.lr, 

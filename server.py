@@ -31,6 +31,7 @@ class Server(NN_Trainer):
         self.max_num_step = kwargs['max_num_step']
         self.lr = kwargs['lr']
         self.momentum = kwargs['momentum']
+        # self.num_workers = kwargs['world_size']
         
 
     def build_model(self, num_classes=10):
@@ -48,8 +49,11 @@ class Server(NN_Trainer):
 
     def update_model(self):
         # gradients received from the workers are averaged used to update the model
-        self.grad_aggregate_buffer = [i / self._num_workers for i in self.grad_aggregate_buffer]
-        self.optimizer.step(grads=self.grad_aggregate_buffer)       
+        self.grad_aggregate_buffer = [i / (self.world_size - 1) for i in self.grad_aggregate_buffer]
+        for id, param in enumerate(self.network.parameters()):
+            param.grad = self.grad_aggregate_buffer[id]
+
+        self.optimizer.step()       
         
     def aggregate_gradients(self, layer_idx, gradient):
         self.grad_aggregate_buffer[layer_idx] = reduce((lambda x, y: x + y), gradient[1:])

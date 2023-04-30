@@ -1,6 +1,7 @@
 from nn_train import NN_Trainer
 import torch.distributed as dist
 import torch
+import numpy as np
 
 
 class ModelBuffer(object):
@@ -31,6 +32,7 @@ class Worker(NN_Trainer):
         self.eval_freq = kwargs['eval_freq']
         self.train_dir = kwargs['train_dir']
         self.device = kwargs['device']
+        self.world_size = kwargs['world_size']
 
     def build_model(self, num_classes=10):
         print("worker inside build_model")
@@ -38,6 +40,8 @@ class Worker(NN_Trainer):
         # assign a buffer for receiving models from parameter server
         self.model_recv_buf = ModelBuffer(self.network)
         self.network.to(self.device)
+
+        
 
     def train(self, train_loader, test_loader):
         print("worker inside train")
@@ -61,12 +65,14 @@ class Worker(NN_Trainer):
                 loss = self.criterion(logits, y_batch)
                 loss.backward()
 
+                print(type(logits))
+
                 precision = self.accuracy(logits.detach(), train_label_batch.long())
                 self.send_gradients()
 
                 print('Worker: {}, Step: {}, Epoch: {} [{}/{} ({:.0f}%)], Loss: {:.4f}, Acc: {:.4f}'.format(
                     self.rank, self.cur_step, num_epoch, batch_idx * self.batch_size, len(train_loader.dataset), 
-                            (100. * (batch_idx * self.batch_size) / len(train_loader.dataset)), loss.item(), precision.numpy()[0]))
+                            (100. * (batch_idx * self.batch_size) / len(train_loader.dataset)), loss.item(), np.array(precision)[0]))
 
                 if self.cur_step%self.eval_freq == 0:
                     self.save_model(file_path=self.train_dir+"step_"+str(self.cur_step))

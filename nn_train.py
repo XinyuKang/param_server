@@ -16,8 +16,8 @@ class NN_Trainer(object):
         self.optimizer = torch.optim.SGD(self.network.parameters(), lr=self.lr, momentum=self.momentum)
         self.criterion = torch.nn.CrossEntropyLoss()
 
-    def accuracy(output, target, topk=(1,)):
-        maxk = max(topk)
+    def accuracy(self, output, target, topK=(1,)):
+        maxk = max(topK)
         batch_size = target.size(0)
 
         _, pred = output.topk(maxk, 1, True, True)
@@ -25,7 +25,7 @@ class NN_Trainer(object):
         correct = pred.eq(target.view(1, -1).expand_as(pred))
 
         res = []
-        for k in topk:
+        for k in topK:
             correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / batch_size))
         return res

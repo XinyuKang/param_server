@@ -14,6 +14,7 @@ from torchvision import datasets, transforms
 
 # --------- MNIST Network to train, from pytorch/examples -----
 
+torch.autograd.set_detect_anomaly(True)
 
 class Net(nn.Module):
     def __init__(self, num_gpus=0):
@@ -24,7 +25,7 @@ class Net(nn.Module):
             "cuda:0" if torch.cuda.is_available() and self.num_gpus > 0 else "cpu"
         )
         print(f"Putting first 2 convs on {str(device)}")
-        # Put conv layers on the first cuda device, or CPU if no cuda device
+        # Put conv layers on the first cuda device
         self.conv1 = nn.Conv2d(1, 32, 3, 1).to(device)
         self.conv2 = nn.Conv2d(32, 64, 3, 1).to(device)
         # Put rest of the network on the 2nd cuda device, if there is one
@@ -32,8 +33,8 @@ class Net(nn.Module):
             device = torch.device("cuda:1")
 
         print(f"Putting rest of layers on {str(device)}")
-        self.dropout1 = nn.Dropout2d(0.25).to(device)
-        self.dropout2 = nn.Dropout2d(0.5).to(device)
+        self.dropout1 = nn.Dropout(0.25).to(device)
+        self.dropout2 = nn.Dropout(0.5).to(device)
         self.fc1 = nn.Linear(9216, 128).to(device)
         self.fc2 = nn.Linear(128, 10).to(device)
 
@@ -62,15 +63,14 @@ class Net(nn.Module):
 
 # On the local node, call a method with first arg as the value held by the
 # RRef. Other args are passed in as arguments to the function called.
-# Useful for calling instance methods. method could be any matching function, including
-# class methods.
+# Useful for calling instance methods.
 def call_method(method, rref, *args, **kwargs):
     return method(rref.local_value(), *args, **kwargs)
 
 
 # Given an RRef, return the result of calling the passed in method on the value
 # held by the RRef. This call is done on the remote node that owns
-# the RRef and passes along the given argument.
+# the RRef. args and kwargs are passed into the method.
 # Example: If the value held by the RRef is of type Foo, then
 # remote_method(Foo.bar, rref, arg1, arg2) is equivalent to calling
 # <foo_instance>.bar(arg1, arg2) on the remote node and getting the result
@@ -113,22 +113,17 @@ class ParameterServer(nn.Module):
         return cpu_grads
 
     # Wrap local parameters in a RRef. Needed for building the
-    # DistributedOptimizer which optimizes paramters remotely.
+    # DistributedOptimizer which optimizes parameters remotely.
     def get_param_rrefs(self):
         param_rrefs = [rpc.RRef(param) for param in self.model.parameters()]
         return param_rrefs
 
 
-# The global parameter server instance.
 param_server = None
-# A lock to ensure we only have one parameter server.
 global_lock = Lock()
 
 
 def get_parameter_server(num_gpus=0):
-    """
-    Returns a singleton parameter server to all trainer processes
-    """
     global param_server
     # Ensure that we get only one handle to the ParameterServer.
     with global_lock:
@@ -140,7 +135,7 @@ def get_parameter_server(num_gpus=0):
 
 def run_parameter_server(rank, world_size):
     # The parameter server just acts as a host for the model and responds to
-    # requests from trainers.
+    # requests from trainers, hence it does not need to run a loop.
     # rpc.shutdown() will wait for all workers to complete by default, which
     # in this case means that the parameter server will wait for all trainers
     # to complete, and then exit.
@@ -177,15 +172,13 @@ class TrainerNet(nn.Module):
 
 
 def run_training_loop(rank, num_gpus, train_loader, test_loader):
-    # Runs the typical nueral network forward + backward + optimizer step, but
+    # Runs the typical neural network forward + backward + optimizer step, but
     # in a distributed fashion.
     net = TrainerNet(num_gpus=num_gpus)
     # Build DistributedOptimizer.
     param_rrefs = net.get_global_param_rrefs()
     opt = DistributedOptimizer(optim.SGD, param_rrefs, lr=0.03)
-    print("fuck")
     for i, (data, target) in enumerate(train_loader):
-        print("Training")
         with dist_autograd.context() as cid:
             print("1")
             model_output = net(data)
@@ -220,7 +213,7 @@ def get_accuracy(test_loader, model):
     )
     with torch.no_grad():
         for i, (data, target) in enumerate(test_loader):
-            out = model(data, -1)
+            out = model(data)
             pred = out.argmax(dim=1, keepdim=True)
             pred, target = pred.to(device), target.to(device)
             correct = pred.eq(target.view_as(pred)).sum().item()
@@ -240,12 +233,15 @@ def run_worker(rank, world_size, num_gpus, train_loader, test_loader):
     rpc.shutdown()
 
 
+# --------- Launcher --------------------
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Parameter-Server RPC based training")
     parser.add_argument(
         "--world_size",
         type=int,
-        default=2,
+        default=3,
         help="""Total number of participating processes. Should be the sum of
         master node and all training nodes.""",
     )
@@ -272,7 +268,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--master_port",
         type=str,
-        default="29500",
+        default="10006",
         help="""Port that master is listening on, will default to 29500 if not
         provided. Master must be able to accept network traffic on the host and port.""",
     )
@@ -284,9 +280,13 @@ if __name__ == "__main__":
     ), f"Only 0-2 GPUs currently supported (got {args.num_gpus})."
     os.environ["MASTER_ADDR"] = args.master_addr
     os.environ["MASTER_PORT"] = args.master_port
-
     processes = []
     world_size = args.world_size
+
+    # Note that Linux uses "fork" by default, which may cause deadlock.
+    # Besides, cuda doesn't support "fork" and Windows only supports "spawn"
+    mp.set_start_method("spawn")
+
     if args.rank == 0:
         p = mp.Process(target=run_parameter_server, args=(0, world_size))
         p.start()

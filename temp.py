@@ -93,24 +93,23 @@ class ParameterServer(nn.Module):
         out = out.to("cpu")
         return out
     
+    # Use dist autograd to retrieve gradients accumulated for this model.
+    # Primarily used for verification.
+    def get_dist_gradients(self, cid):
+        grads = dist_autograd.get_gradients(cid)
+        # This output is forwarded over RPC, which as of 1.5.0 only accepts CPU tensors.
+        # Tensors must be moved in and out of GPU memory due to this.
+        cpu_grads = {}
+        for k, v in grads.items():
+            k_cpu, v_cpu = k.to("cpu"), v.to("cpu")
+            cpu_grads[k_cpu] = v_cpu
+        return cpu_grads
 
-# Use dist autograd to retrieve gradients accumulated for this model.
-# Primarily used for verification.
-def get_dist_gradients(self, cid):
-    grads = dist_autograd.get_gradients(cid)
-    # This output is forwarded over RPC, which as of 1.5.0 only accepts CPU tensors.
-    # Tensors must be moved in and out of GPU memory due to this.
-    cpu_grads = {}
-    for k, v in grads.items():
-        k_cpu, v_cpu = k.to("cpu"), v.to("cpu")
-        cpu_grads[k_cpu] = v_cpu
-    return cpu_grads
-
-# Wrap local parameters in a RRef. Needed for building the
-# DistributedOptimizer which optimizes paramters remotely.
-def get_param_rrefs(self):
-    param_rrefs = [rpc.RRef(param) for param in self.model.parameters()]
-    return param_rrefs
+    # Wrap local parameters in a RRef. Needed for building the
+    # DistributedOptimizer which optimizes paramters remotely.
+    def get_param_rrefs(self):
+        param_rrefs = [rpc.RRef(param) for param in self.model.parameters()]
+        return param_rrefs
 
 
 # The global parameter server instance.
@@ -175,11 +174,15 @@ def run_training_loop(rank, num_gpus, train_loader, test_loader):
     # Build DistributedOptimizer.
     param_rrefs = net.get_global_param_rrefs()
     opt = DistributedOptimizer(optim.SGD, param_rrefs, lr=0.03)
-
+    print("fuck")
     for i, (data, target) in enumerate(train_loader):
+        print(i)
         with dist_autograd.context() as cid:
+            print("1")
             model_output = net(data)
+            print("2")
             target = target.to(model_output.device)
+            print(i)
             loss = F.nll_loss(model_output, target)
             if i % 5 == 0:
                 print(f"Rank {rank} training batch {i} loss {loss.item()}")
@@ -232,18 +235,18 @@ if __name__ == '__main__':
     parser.add_argument(
         "--world_size",
         type=int,
-        default=4,
+        default=3,
         help="""Total number of participating processes. Should be the sum of
         master node and all training nodes.""")
     parser.add_argument(
-        "rank",
+        "--rank",
         type=int,
-        default=None,
+        default=2,
         help="Global rank of this process. Pass in 0 for master.")
     parser.add_argument(
-        "num_gpus",
+        "--num_gpus",
         type=int,
-        default=0,
+        default=1,
         help="""Number of GPUs to use for training, Currently supports between 0
          and 2 GPUs. Note that this argument will be passed to the parameter servers.""")
     parser.add_argument(
@@ -281,6 +284,7 @@ if __name__ == '__main__':
                             transforms.Normalize((0.1307,), (0.3081,))
                         ])),
             batch_size=32, shuffle=True,)
+
         test_loader = torch.utils.data.DataLoader(
             datasets.MNIST(
                 '../data',

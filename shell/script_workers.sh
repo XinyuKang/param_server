@@ -78,5 +78,4 @@ do
 
 done
 
-bash script_workers_serv_inc.sh
 

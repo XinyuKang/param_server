@@ -3,5 +3,5 @@
 ## Usage
 
 ```bash
-bash shell/*.sh
+bash shell/run.sh
 ```

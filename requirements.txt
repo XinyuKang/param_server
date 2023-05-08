@@ -1,0 +1,4 @@
+torch ==2.0.0
+torchvision ==0.15.1
+numpy == 1.23.5 
+ray == 2.4.0 

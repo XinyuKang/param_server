@@ -131,7 +131,7 @@ if __name__ == "__main__":
             # Define parameters that will need to be moved
             failure_params = weight_assignments[failure_server]
             # Delete server from hash ring and reassign params
-            hasher.delete_node_and_reassign_to_others(failure_server)
+            hasher.delete_node(failure_server)
             weight_assignments = hasher.get_keys_per_node()
             # Update servers and workers
             num_servers -= 1

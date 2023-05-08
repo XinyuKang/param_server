@@ -3,5 +3,23 @@
 ## Usage
 
 ```bash
-bash shell/run.sh
+bash shell/script.sh
 ```
+
+## Implementation
+
+```bash
+.
+├── results
+│   └── ...
+├── shell
+│   └── ...
+├── main.py
+├── fault_tolarent.py
+├── data_loader.py
+├── model.py
+├── param_server.py
+└── README.md
+```
+
+In 

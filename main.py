@@ -1,7 +1,6 @@
 import ray
 import argparse
-import scheduler
-import ray
+import param_server
 import numpy as np
 from time import time
 import models
@@ -100,7 +99,7 @@ if __name__ == "__main__":
         model,
         weight_assignments,
         server_ids,
-    ) = scheduler.Scheduler(num_servers, num_workers, hashes_per_server)
+    ) = param_server.Scheduler(num_servers, num_workers, hashes_per_server)
     ray.init(ignore_reinit_error=True)
 
     print(
@@ -125,6 +124,7 @@ if __name__ == "__main__":
     for i in range(iterations):
         start_i = time()
 
+        # fail a server at a particular iteration
         if do_failure_test == 1 and i == failure_iter:
             server_ids_old = server_ids.copy()
             weight_assignments_old = weight_assignments.copy()
@@ -159,17 +159,15 @@ if __name__ == "__main__":
                 for idx in range(num_workers)
                 for j in range(num_servers)
             ]
-            # print("at failure", np.mean(current_weights))
             current_weights = curr_weights_ckpt.copy()
-            # print("at failure", np.mean(current_weights))
             [
                 workers[j][idx].update_weights.remote(keys_order, *current_weights)
                 for idx in range(num_workers)
                 for j in range(num_servers)
             ]
 
+        # Evaluate model every eval_interval iterations.
         if i % eval_interval == 0:
-            # Evaluate the current model.
             model.set_weights(keys_order, current_weights)
             accuracy = models.evaluate(model, test_loader)
             accuracy_per_iteration.append(accuracy)

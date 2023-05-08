@@ -31,7 +31,7 @@ In this implementation, we use `main.py` to run the program. `param_server.py` c
 ```pip install -r requirements.txt```
 
 ## Report 
-Please see final_report.pdf for additional implementation details. 
+Please see ```final_report.pdf``` for additional implementation details. 
 
 ## Unit Test
 ``` python test.py``` to run all our tests. 

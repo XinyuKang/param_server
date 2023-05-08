@@ -6,7 +6,7 @@
 bash shell/script.sh
 ```
 
-## File Stucture 
+## File Stucture
 
 ```bash
 .

@@ -85,7 +85,7 @@ class Worker(object):
         Args:
             keys: a list of keys
         """
-        self.model = models.LinearNet()
+        self.model = models.MLP()
         self.data_iterator = iter(data_loader.get_data_loader()[0])
         self.keys = keys
         self.key_set = set(self.keys)
@@ -147,7 +147,7 @@ def Scheduler(num_servers, num_workers, hashes_per_server=50):
         num_workers: number of workers
         hashes_per_server: number of hashes per server
     """
-    model = models.LinearNet()
+    model = models.MLP()
     key_values = model.get_weights()
     keys = np.array(list(key_values.keys()))
     values = [key_values[key] for key in keys]

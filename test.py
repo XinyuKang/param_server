@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 import models
-from models import LinearNet, evaluate
+from models import MLP, evaluate
 from param_server import ParameterServer, Scheduler, Worker
 from consistent_hashing import ConsistentHash
 
@@ -17,7 +17,7 @@ y = torch.randint(0, 2, (100, 1)).float()
 
 class TestModel(unittest.TestCase):
     def setUp(self):
-        self.model = LinearNet()
+        self.model = MLP()
         dataset = TensorDataset(X, y)
         self.test_loader = DataLoader(dataset, batch_size=32)
 
@@ -128,7 +128,7 @@ class TestScheduler(unittest.TestCase):
         self.assertEqual(total_keys, len(keys))
 
         # Check if the model is of the correct type
-        self.assertIsInstance(model, models.LinearNet)
+        self.assertIsInstance(model, models.MLP)
 
         # Check if the hasher is initialized correctly
         self.assertIsNotNone(hasher)

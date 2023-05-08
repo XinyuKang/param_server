@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 
-class LinearNet(nn.Module):
+class MLP(nn.Module):
     """Small Linear Network for MNIST.
 
     Attributes:
@@ -12,7 +12,7 @@ class LinearNet(nn.Module):
 
     def __init__(self):
         """Initializes a linear network."""
-        super(LinearNet, self).__init__()
+        super(MLP, self).__init__()
         self.fc_weights = nn.ParameterList(
             [nn.Parameter(torch.empty(1)) for weight in range(784)]
         )

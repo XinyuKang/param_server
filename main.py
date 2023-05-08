@@ -1,12 +1,11 @@
 import ray
 import argparse
-import json
+import param_server
 import numpy as np
 from time import time
-
-import param_server
 import models
 import data_loader
+import json
 
 parser = argparse.ArgumentParser(
     description="synchronous distributed linear regression"
@@ -132,7 +131,7 @@ if __name__ == "__main__":
             # Define parameters that will need to be moved
             failure_params = weight_assignments[failure_server]
             # Delete server from hash ring and reassign params
-            hasher.delete_node(failure_server)
+            hasher.delete_node_and_reassign_to_others(failure_server)
             weight_assignments = hasher.get_keys_per_node()
             # Update servers and workers
             num_servers -= 1
@@ -154,7 +153,7 @@ if __name__ == "__main__":
                     )
             # Update these parameters for each worker to make them trainable
             [
-                workers[j][idx].update_trainable.remote(
+                workers[j]._idle_actors[idx].update_trainable.remote(
                     weight_assignments[server_ids[j]]
                 )
                 for idx in range(num_workers)
@@ -162,7 +161,9 @@ if __name__ == "__main__":
             ]
             current_weights = curr_weights_ckpt.copy()
             [
-                workers[j][idx].update_weights.remote(keys_order, *current_weights)
+                workers[j].submit(lambda a, v: a.update_weights.remote(v[0], v[1]), 
+                    [keys_order, *current_weights])
+                # [workers[j][idx].update_weights.remote(keys_order, *current_weights)
                 for idx in range(num_workers)
                 for j in range(num_servers)
             ]
@@ -180,8 +181,8 @@ if __name__ == "__main__":
 
             # update weights on all workers
             [
-                workers[j][idx].update_weights.remote(keys_order, *current_weights)
-                for idx in range(num_workers)
+                [workers[j]._idle_actors[idx].update_weights.remote(keys_order, *current_weights)
+                for idx in range(num_workers)]
                 for j in range(num_servers)
             ]
 
@@ -189,7 +190,8 @@ if __name__ == "__main__":
 
         # use local cache of weights and get gradients from workers
         gradients = [
-            [workers[j][idx].compute_gradients.remote() for idx in range(num_workers)]
+            [workers[j]._idle_actors[idx].compute_gradients.remote() for idx in range(num_workers)]
+            # workers[j]._idle_actors[idx](lambda a: a.compute_gradients.remote())
             for j in range(num_servers)
         ]
 

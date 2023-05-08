@@ -2,6 +2,7 @@ import ray
 import torch
 import torch.nn as nn
 import numpy as np
+from ray.util import ActorPool
 
 import models
 import data_loader
@@ -168,10 +169,10 @@ def Scheduler(num_servers, num_workers, hashes_per_server=50):
     # creating equal workers per server
     weight_assignments = hasher.get_keys_per_node()
     workers = [
-        [
+        ActorPool([
             Worker.remote(weight_assignments["server" + str(j)])
             for i in range(num_workers)
-        ]
+        ])
         for j in range(num_servers)
     ]
 

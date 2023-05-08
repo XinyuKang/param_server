@@ -1,11 +1,12 @@
 import ray
 import argparse
-import param_server
+import json
 import numpy as np
 from time import time
+
+import param_server
 import models
 import data_loader
-import json
 
 parser = argparse.ArgumentParser(
     description="synchronous distributed linear regression"

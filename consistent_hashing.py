@@ -122,7 +122,7 @@ class ConsistentHash:
         self.nodes.remove(node)
         self.reassign_keys()
 
-    def delete_node_and_reassign_to_others(self, node):
+    def delete_node(self, node):
         """Deletes a node and reassigns its keys to other nodes
 
         Args:

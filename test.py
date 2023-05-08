@@ -165,9 +165,9 @@ class TestConsistentHash(unittest.TestCase):
         self.ch.delete_node(node_to_remove)
         self.assertNotIn(node_to_remove, self.ch.node_hashes)
 
-    def test_delete_node_and_reassign_to_others(self):
+    def test_delete_node(self):
         node_to_remove = "node1"
-        self.ch.delete_node_and_reassign_to_others(node_to_remove)
+        self.ch.delete_node(node_to_remove)
         self.assertNotIn(node_to_remove, self.ch.node_hashes)
         for key, node in self.ch.node_assignments.items():
             self.assertNotEqual(node, node_to_remove)

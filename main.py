@@ -6,10 +6,19 @@ from time import time
 import models
 import data_loader
 import json
+import torch
+
 
 parser = argparse.ArgumentParser(
     description="synchronous distributed linear regression"
 )
+parser.add_argument(
+    "-sp", "--save_path", type=str, default='./model_weights.pt', help="model weight save path"
+)
+parser.add_argument(
+    "-lp", "--load_path", type=str, help="model weight load path"
+)
+
 parser.add_argument(
     "-ns", "--num_servers", type=int, help="an integer for the number of servers to use"
 )
@@ -100,6 +109,11 @@ if __name__ == "__main__":
         weight_assignments,
         server_ids,
     ) = param_server.Scheduler(num_servers, num_workers, hashes_per_server)
+
+    if args.load_path is not None:
+        model = torch.load(args.load_path)
+        print("model loaded from last checkpoint")
+
     ray.init(ignore_reinit_error=True)
 
     print(
@@ -213,6 +227,10 @@ if __name__ == "__main__":
         end = time()
         time_per_iteration.append(end - start_i)
         time_per_gradient_push.append(end - start_g)
+
+        if (i % 10 == 0):
+            torch.save(model, args.save_path)
+
 
     # Clean up Ray resources and processes before the next example.
     ray.shutdown()
